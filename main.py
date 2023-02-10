@@ -1,6 +1,7 @@
 
 import time
 from fake_useragent import UserAgent
+from selenium.webdriver import DesiredCapabilities
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
@@ -8,6 +9,35 @@ import logging
 from random import randrange
 from seleniumwire import webdriver
 from webdriver_manager.chrome import ChromeDriverManager
+
+def init_driver():
+    chrome_options = webdriver.ChromeOptions()
+    chrome_options.add_argument('--headless')
+    chrome_options.add_argument('--incognito')
+    chrome_options.add_argument('--no-sandbox')
+    chrome_options.add_argument('--disable-dev-shm-usage')
+    chrome_options.add_argument("start-maximized")
+    chrome_options.add_argument('--disable-blink-features=AutomationControlled')
+    chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    chrome_options.add_experimental_option('useAutomationExtension', False)
+    chrome_options.add_argument(f'user-agent={generate_fake_ua()}')
+    seleniumwire_options = {
+        'addr': 'django',
+        'proxies': {
+            "http": "socks5://1fnvs1zk:q6q7fran@dina.ltespace.com:13574",
+            "https": "socks5://1fnvs1zk:q6q7fran@dina.ltespace.com:13574",
+            'no_proxy': 'localhost,django,127.0.0.1'
+        }
+    }
+
+    browser = webdriver.Remote(
+        command_executor='http://localhost:4444/wd/hub',
+        desired_capabilities=DesiredCapabilities.CHROME,
+        options=chrome_options,
+        seleniumwire_options=seleniumwire_options
+    )
+    browser.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+    return browser
 
 
 def generate_fake_ua() -> UserAgent:
@@ -45,7 +75,6 @@ def get_position(domain_list: list, keywords: list) -> list:
                     print("----------------")
                     print(count)
                     print("----------------")
-                    browser.get(url)
                     next_page_link.append(browser.find_element(By.XPATH, '//td[@class="d6cvqb BBwThe"]//a[@id="pnnext"]').get_attribute(
                             'href'))
                     browser.get(next_page_link[count])
@@ -55,19 +84,18 @@ def get_position(domain_list: list, keywords: list) -> list:
                     print("----------------")
                     print(count)
                     print("----------------")
-                    browser.get(url)
-                    next_page_link = browser.find_element(By.XPATH, '//td[@class="d6cvqb BBwThe"]//a[@id="pnnext"]').get_attribute(
-                            'href')
-                    browser.get(next_page_link)
+                    next_page_link[count] = browser.find_element(By.XPATH, '//td[@class="d6cvqb BBwThe"]//a[@id="pnnext"]').get_attribute(
+                            'href') # заменил ссылку на вторую страницу ссылкой на третью
+                    browser.get(next_page_link[count])
                     print(f"Count: {count} url: {next_page_link[count]}")
 
-                dns = browser.find_elements(By.XPATH, '//div[@class="yuRUbf"]//a')
+                dns = browser.find_elements(By.XPATH, '//div[@class="yuRUbf"]//a[@data-ved]')
                 href_dict = {i + 1: dns[i].get_attribute('href') for i in range(0, len(dns))}
             except Exception as ex:
                     logging.exception(ex)
 
             count += 1
-            href_dict = check_for_webcache(href_dict, DOMAIN)# словарь с сайтами без рекламы
+            #href_dict = check_for_webcache(href_dict, DOMAIN)# словарь с сайтами без рекламы
             print(f"Page is: {page}")
             for key, value in href_dict.items():
                  print(f"{key} : {value}")
@@ -86,7 +114,7 @@ def get_position(domain_list: list, keywords: list) -> list:
 
 
 def check_for_webcache(href_dict: dict, domain: str) -> dict:
-    href_dict = {key: value for key, value in href_dict.items() if not value.startswith(domain, 8)}
+    href_dict = {key: value for key, value in href_dict.items() if not value.startswith('webcache.googleusercontent.com', 8) and not value.startswith('www.google.com', 8)}
     return href_dict
 
 
@@ -103,10 +131,10 @@ def main():
             'zovmoscow.ru',
             'zovrus.ru',
             'leroymerlin.ru',
-            'mebelveb.ru'
+            'mebelveb.ru',
+            'mas-mebel.ru'
      ]
 
-    region_title = 'Краснодар'
     result = get_position(domain_list, get_keywords_list(query_list))
     print('Позиция сайта на странице:')
     print(result) # TODO: вывод в формате json
@@ -115,3 +143,4 @@ def main():
 main()
 '/search?q=%D0%BA%D1%83%D0%BF%D0%B8%D1%82%D1%8C+%D0%BA%D1%83%D1%85%D0%BD%D0%B8&amp;sxsrf=AJOqlzUCAQmMA1BOet2nsJfeFgx6l9sXJw:1675961921004&amp;ei=QCblY4v6PJuIxc8PzOWqmAg&amp;start=20&amp;sa=N&amp;ved=2ahUKEwiLmtXX9Ij9AhUbRPEDHcyyCoM4ChDw0wN6BAgFEBc&amp;cshid=1675962084698591'
 
+list = ['page 1', 'page 1', ]
